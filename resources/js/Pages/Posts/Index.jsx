@@ -1,67 +1,66 @@
-import { useEffect, useState } from "react";
-import axios from "axios";
-import PostItem from "./PostItem.jsx";
+import { useState } from "react";
 import Paginator from "../../components/Paginator.jsx";
+import Loading from "../../components/Loading.jsx";
+import CategoryFilter from "../../components/CategoryFilter.jsx";
+import PostsTable from "../../components/PostsTable.jsx";
+import usePosts from "../../components/hooks/usePosts.jsx";
+import useCategories from "../../components/hooks/useCategories.jsx";
 
-const PostIndex = () => {
-    const [posts, setPosts] = useState(null);  // start with null
-    const [isLoading, setIsLoading] = useState(true);  // loading state
+const ALL_CATEGORIES = "All Categories";
 
-    const fetchPosts = (page = 1) => {
-        axios.get('/api/posts', { params: { page } })
-            .then(response => {
-                setPosts(response.data);
-                setIsLoading(false);  // set loading to false once data is fetched
-            })
-            .catch(error => {
-                console.error("There was an error fetching posts:", error);
-                setIsLoading(false);  // set loading to false if there's an error
-            });
+const PostsIndex = () => {
+    const [page, setPage] = useState(1);
+    const [categoryId, setCategoryId] = useState(null);
+    const [orderColumn, setOrderColumn] = useState('id');
+    const [orderDirection, setOrderDirection] = useState('desc');
+
+    const query = { page, category_id: categoryId, order_column: orderColumn, order_direction: orderDirection };
+    const { posts, isLoading: postsLoading, error: postsError } = usePosts(query);
+    const { categories, isLoading: categoriesLoading, error: categoriesError } = useCategories();
+
+    if (postsLoading || categoriesLoading) {
+        return <Loading/>;
     }
 
-    useEffect(() => {
-        fetchPosts(1);
-    }, []);
-
-    if (isLoading) {
-        return <div>Loading...</div>;  // or show a spinner
+    if (postsError || categoriesError) {
+        return <div>Error loading data</div>;
     }
 
-    const gotoPageHandler = (url) =>  {
+    const gotoPageHandler = (url) => {
         const fullUrl = new URL(url);
-        const page= fullUrl.searchParams.get('page');
-        fetchPosts(page);
+        setPage(fullUrl.searchParams.get('page'));
     }
+
+    const handleCategoryChange = (e) => {
+        const selectedCategoryId = e.target.value === ALL_CATEGORIES ? null : e.target.value;
+        setPage(1);
+        setCategoryId(selectedCategoryId);
+    };
+
+    const toggleSort = (column) => {
+        if (orderColumn === column) {
+            const newDirection = orderDirection === 'asc' ? 'desc' : 'asc';
+            setOrderDirection(newDirection);
+        } else {
+            setOrderColumn(column);
+            setOrderDirection('desc');
+        }
+    };
 
     return (
         <div className="overflow-hidden overflow-x-auto p-6 bg-white border-gray-200">
             <div className="min-w-full align-middle">
-
-                <table className="w-full text-sm text-left text-gray-500">
-                    <thead className="text-xs text-gray-700 uppercase bg-gray-50">
-                    <tr>
-                        <th scope="col" className="px-6 py-3">
-                            <span>ID</span>
-                        </th>
-                        <th><span>Title</span></th>
-                        <th><span>Content</span></th>
-                        <th><span>Created at</span></th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {posts?.data?.map(post => (
-                        <PostItem key={post.id} post={post} />
-                    ))}
-                    </tbody>
-                </table>
+                <div className="mb-4">
+                    <CategoryFilter categories={categories} onChange={handleCategoryChange}/>
+                </div>
+                <PostsTable posts={posts} orderColumn={orderColumn} orderDirection={orderDirection} toggleSort={toggleSort} />
                 <Paginator
-                    meta={posts?.meta}
+                    meta={posts.meta}
                     onClick={gotoPageHandler}
                 />
-
             </div>
         </div>
     );
 }
 
-export default PostIndex;
+export default PostsIndex;

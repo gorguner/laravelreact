@@ -1,7 +1,9 @@
 import {useState} from "react";
 
 const Paginator = ({meta, onClick}) => {
-
+    if (!meta) {
+        return null; // Don't render the paginator if meta is not available
+    }
     return (
         <nav role="navigation" aria-label="Pagination Navigation" className="flex items-center justify-between mt-3">
             <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
